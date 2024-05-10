@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "852541175665",
+    "firebase_url": "https://ecoroute-4eeb1-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "ecoroute-4eeb1",
+    "storage_bucket": "ecoroute-4eeb1.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:852541175665:android:117ae0029fe2c822d728d0",
+        "android_client_info": {
+          "package_name": "com.example.eco_route_se"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "852541175665-47qk0es70uu9ivsp24iukk06e42dsc12.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpq32PEt7Kp8PoahQlLWL2HL3Yei04O5Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "852541175665-47qk0es70uu9ivsp24iukk06e42dsc12.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "852541175665-01mh5otral555fd8i13f4a7mrosii01t.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.ecoRoutePfe"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

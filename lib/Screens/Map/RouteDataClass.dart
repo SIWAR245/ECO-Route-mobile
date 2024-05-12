@@ -1,5 +1,5 @@
-
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart' as osm;
+
 class RouteData {
   final List<osm.GeoPoint> allPoints;
   final List<osm.GeoPoint> routePoints;

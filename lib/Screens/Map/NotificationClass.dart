@@ -1,5 +1,5 @@
 class Notification {
-  final String notif_id;  // New field to store document ID
+  final String notif_id;
   final String type;
   final String routeId;
   final String userUID;

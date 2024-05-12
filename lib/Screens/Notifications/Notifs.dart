@@ -57,9 +57,9 @@ class _NotifsScreenState extends State<NotifsScreen> {
         timestamp.day == yesterday.day) {
       return 'Yesterday';
     } else if (timestamp.year == now.year && timestamp.month == now.month) {
-      return DateFormat('MM-dd.dart').format(timestamp);
+      return DateFormat('MM-dd').format(timestamp);
     } else {
-      return DateFormat('MM-dd.dart').format(timestamp);
+      return DateFormat('MM-dd-yyyy').format(timestamp);
     }
   }
 
@@ -154,11 +154,13 @@ class _NotifsScreenState extends State<NotifsScreen> {
                             Color.fromRGBO(98, 227, 208,220),
                             Color.fromRGBO(244, 100, 140,220),
                             Color.fromRGBO(123, 152, 245,220),
+                            Color.fromRGBO(123, 152, 245, 220),
                           ];
                           List<Color> colors2 = [
                             Color.fromRGBO(0, 128, 128,5),
                             Color.fromRGBO(244, 100, 140,5),
                             Color.fromRGBO(123, 152, 245,5),
+                            const Color.fromRGBO(123, 152, 245, 5),
                           ];
 
                           IconData iconData;
@@ -172,10 +174,14 @@ class _NotifsScreenState extends State<NotifsScreen> {
                             iconData = Icons.error;
                             containerColor = colors[1];
                             iconsColor = colors2[1];
+                          } else if (notif['type'] == 'route_ready') {
+                            iconData = Icons.route;
+                            containerColor = colors[2];
+                            iconsColor = colors2[2];
                           } else {
                             iconData = Icons.error;
-                            containerColor = colors[2 % colors.length];
-                            iconsColor = colors2[2 % colors.length];
+                            containerColor = colors[3];
+                            iconsColor = colors2[3];
                           }
 
 
@@ -191,22 +197,38 @@ class _NotifsScreenState extends State<NotifsScreen> {
                                   padding: EdgeInsets.all(5),
                                   child:  Icon(iconData,color: iconsColor,)
                               ),
-                              title: Text(notif['type'] == 'correct_route'
+                              title: Text(
+                                notif['type'] == 'correct_route'
                                     ? 'Route Completed Successfully'
-                                    : 'Route Divergence Detected',
+                                    : notif['type'] == 'wrong_route'
+                                    ? 'Route Divergence Detected'
+                                    : notif['type'] == 'route_ready'
+                                    ? 'Route Ready for Collection'
+                                    : notif['type'] == 'fallen_bin'
+                                    ? 'Fallen Bin Detected'
+                                    : 'Unknown notification type',
                                 style: TextStyle(
                                   color: iconsColor,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              subtitle:Text(notif['type'] == 'correct_route'
-                                  ? 'You ve successfully completed the assigned route for waste collection'
-                                  : 'You have diverged from the planned route',
+                              subtitle: Text(
+                                notif['type'] == 'correct_route'
+                                    ? 'You ve successfully completed the assigned route for waste collection.'
+                                    : notif['type'] == 'wrong_route'
+                                    ? 'You have diverged from the planned route.'
+                                    : notif['type'] == 'route_ready'
+                                    ? 'Your route is set, time to start collecting waste.'
+                                    : notif['type'] == 'fallen_bin'
+                                    ? 'A bin has fallen down.'
+                                    : 'Unknown notification type.',
                                 style: const TextStyle(
-                                  color: Color.fromRGBO(112, 128, 145,5),
-                                  fontSize: 13
+                                  color: Color.fromRGBO(112, 128, 145, 5),
+                                  fontSize: 13,
                                 ),
                               ),
+
+
                               trailing: Text(
                                 notif['timestamp'] != null
                                     ? _formatTimestamp(notif['timestamp'].toDate())

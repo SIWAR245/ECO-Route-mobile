@@ -1023,7 +1023,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     );
   }
 
-
   void _showRouteCompletionDialog() {
     showDialog(
       context: context,
@@ -1413,8 +1412,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       print("Error while creating notification: $error");
     }
   }
-
-
 
 
   void _toggleUserLocation() async  {

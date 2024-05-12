@@ -12,7 +12,8 @@ class NotificationService {
   FlutterLocalNotificationsPlugin();
 
   final Map<String, List<Map<String, dynamic>>> _queuedNotifications = {};
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();// Variable to store the timestamp of the last notification
+  bool notificationCreated = false; //
 
   Future<void> configureFirebaseMessaging(BuildContext context) async {
     print('Configuring Firebase Messaging...');
@@ -27,6 +28,7 @@ class NotificationService {
         }
       });
     });
+
 
     // Check for queued notifications when the user logs in
     _auth.authStateChanges().listen((User? user) {
@@ -49,8 +51,11 @@ class NotificationService {
       },
     );
 
+
+
     print('Firebase Messaging configured.');
   }
+
 
   Future<void> _showNotificationIfConnected(Map<String, dynamic> notificationData) async {
     print('Checking if notification should be shown: $notificationData');
@@ -81,15 +86,19 @@ class NotificationService {
       }
     }
   }
-
-
   bool _isCurrentUserNotification(Map<String, dynamic> notificationData) {
     final currentUser = _auth.currentUser;
     return currentUser != null && notificationData['userUID'] == currentUser.uid;
   }
 
   void _processNotification(Map<String, dynamic> notificationData) {
-    String title = notificationData['type'] == 'correct_route' ? 'Route completed Successfully' : 'Route Divergence Detected';
+    String title = notificationData['type'] == 'correct_route'
+        ? 'Route completed Successfully'
+        : notificationData['type'] == 'wrong_route'
+        ? 'Route Divergence Detected'
+        : notificationData['type'] == 'route_ready'
+        ? 'Route Ready for Collection'
+        : 'Fallen Bin Detected';
     Timestamp timestamp = notificationData['timestamp'];
     String body = DateFormat('yyyy-MM-dd – kk:mm').format(timestamp.toDate());
 
@@ -132,7 +141,6 @@ class NotificationService {
       print('Notification already queued or sent: $notificationData');
     }
   }
-
   Future<void> _sendQueuedNotifications(String userUID) async {
     if (_queuedNotifications.containsKey(userUID)) {
       final queuedNotifications =
@@ -155,4 +163,8 @@ class NotificationService {
   }
 
 
+
+
+
 }
+

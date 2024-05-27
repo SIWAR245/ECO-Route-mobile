@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eco_route_se/Screens/Profile/Team/update_team_member.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:flutter_svg/svg.dart';
 import '../../../Common_widgets/toast.dart';
 import 'add_team_member.dart';
 import 'dart:async';
@@ -27,7 +26,6 @@ class _TeamState extends State<Team> {
   }
 
 
-  //delete method
   Future<void> deleteTeamMember(String memberId) async {
     try {
       await _teamMember.doc(memberId).delete();
@@ -41,8 +39,6 @@ class _TeamState extends State<Team> {
     }
   }
 
-
-  //redirection to the update form
   void updateMember(BuildContext context, String memberId) {
     Navigator.push(
       context,
@@ -51,7 +47,6 @@ class _TeamState extends State<Team> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +91,12 @@ class _TeamState extends State<Team> {
                             blurRadius: 2,
                           ),
                         ],
+                        // border: Border(
+                        //   left: BorderSide(
+                        //     color: Colors.teal, // Couleur du bord gauche
+                        //     width: 6, // Épaisseur du bord gauche
+                        //   ),
+                        // ),
                       ),
                       child: Slidable(
                         endActionPane: ActionPane(
@@ -160,6 +161,10 @@ class _TeamState extends State<Team> {
                                 style: const TextStyle(fontSize: 20),
                               ),
                               subtitle: Text(data['Email'],),
+                              trailing: Icon(
+                                  Icons.keyboard_arrow_right,
+                                color: Colors.grey,
+                              ),
                               onTap: () {},
                               tileColor: Colors.white,
 
@@ -170,7 +175,6 @@ class _TeamState extends State<Team> {
                     ),
                   );
                 }).toList();
-
                 return ListView(
                   scrollDirection: Axis.vertical,
                   shrinkWrap: true,
@@ -179,74 +183,42 @@ class _TeamState extends State<Team> {
               },
             ),
           ),
-          Container(
-            height: 60,
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: Colors.teal,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.3),
-                  spreadRadius: 2,
-                  blurRadius: 5,
-                  offset: Offset(0, 1),
-                ),
-              ],
-            ),
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: EdgeInsets.zero,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                side: BorderSide.none,
-              ),
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddMemberForm(),
-                  ),
-                );
-              },
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Add Your Team Members',
-                    style: TextStyle(color: Colors.white, fontSize: 20),
-                  ),
-                  SizedBox(
-                    width: 8,
-                  ),
-                  Icon(Icons.chevron_right,color: Colors.white,),
-                ],
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: FloatingActionButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddMemberForm(),
+                    ),
+                  );
+                },
+                backgroundColor: Colors.teal,
+                elevation: 1,
+                child: Icon(Icons.add, color: Colors.white, size: 32), // Adjust the size as needed
               ),
             ),
           ),
-
-          const SizedBox(
-            height: 410,
-          )
+          // const SizedBox(
+          //   height: 410,
+          // )
         ],
       ),
-      bottomSheet: Container(
-        width: 360,
-        height: 380,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-        ),
-        child: SvgPicture.asset(
-          'assets/images/aaaa.svg',
-          fit: BoxFit.fill,
-        ),
-      ),
+      // bottomSheet: Container(
+      //   width: 360,
+      //   height: 380,
+      //   decoration: const BoxDecoration(
+      //     color: Colors.white,
+      //   ),
+      //   child: SvgPicture.asset(
+      //     'assets/images/aaaa.svg',
+      //     fit: BoxFit.fill,
+      //   ),
+      // ),
       backgroundColor: Colors.white,
     );
   }
-
-
 }

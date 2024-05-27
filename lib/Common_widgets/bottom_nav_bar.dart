@@ -32,7 +32,6 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
     updateNotificationCount();
   }
 
-  // Initialize Firebase app
   void initializeFirebase() async {
     await Firebase.initializeApp();
   }
@@ -52,7 +51,6 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
     }
   }
 
-// Update notification status to read
   Future<void> markNotificationsAsRead() async {
     String? uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {

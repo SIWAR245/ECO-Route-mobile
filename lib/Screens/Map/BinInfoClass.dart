@@ -1,18 +1,21 @@
-
 class BinInfo {
+  final String binId;
   final double fillingLevel;
   final double latitude;
   final double longitude;
   final String locationName;
-  double cost; // Add this property to store the calculated cost
-  bool visited; // Flag for ACO process
+  final String tiltStatus;
+  double cost;
+  bool visited;
 
   BinInfo({
+    required this.binId,
     required this.fillingLevel,
     required this.latitude,
     required this.longitude,
     required this.locationName,
-    this.cost = 0, // Initialize cost to 0
-    this.visited = false, // Initialize visited flag to false
+    required this.tiltStatus,
+    this.cost = 0,
+    this.visited = false,
   });
 }

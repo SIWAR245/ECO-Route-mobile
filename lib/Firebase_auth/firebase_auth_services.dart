@@ -1,9 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import '../Common_widgets/toast.dart';
-import '../Screens/Login/login_screen.dart';
 
 class FirebaseAuthServices {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -61,7 +58,6 @@ class FirebaseAuthServices {
   //   }
   // }
 
-
   Future<Map<String, dynamic>?> getUserInfo(String email) async {
     QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore.instance
         .collection('employees')
@@ -75,9 +71,6 @@ class FirebaseAuthServices {
     return null;
   }
 
-
-
-//signIg employee method
   Future<User?> signIn(String email, String password) async {
     Map<String, dynamic>? userInfo = await getUserInfo(email);
 
@@ -112,8 +105,6 @@ class FirebaseAuthServices {
     return null;
   }
 
-
-  //reset password method
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
@@ -128,7 +119,5 @@ class FirebaseAuthServices {
       ToastUtils.showErrorToast(message: 'An unexpected error occurred.');
     }
   }
-
-
 
 }

@@ -27,7 +27,7 @@ class _ProfileState extends State<Profile> {
     });
   }
 
-  //getting the current document id
+
   Future<String?> getDocumentId() async {
     String? uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
@@ -42,7 +42,7 @@ class _ProfileState extends State<Profile> {
     return null;
   }
 
-  //logout method
+
   void _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     Navigator.pushReplacement(

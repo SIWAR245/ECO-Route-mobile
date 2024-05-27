@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../../Common_widgets/tealButton.dart';
 import '../../Common_widgets/toast.dart';
@@ -27,7 +26,6 @@ class _ChangePWDState extends State<ChangePWD> {
   String imageUrl = '';
 
 
-  // data loading from firestore
   Future<void> getUserInfo() async {
     String? uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
@@ -49,7 +47,6 @@ class _ChangePWDState extends State<ChangePWD> {
     }
   }
 
-//Updating password
   void changePassword(String newPassword, String confirmPassword) async {
     if (newPassword != confirmPassword) {
       ToastUtils.showErrorToast(

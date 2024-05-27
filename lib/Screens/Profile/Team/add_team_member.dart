@@ -49,7 +49,7 @@ class _AddMemberFormState extends State<AddMemberForm> {
     super.dispose();
   }
 
-  //date selection method
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -63,8 +63,6 @@ class _AddMemberFormState extends State<AddMemberForm> {
     }
   }
 
-
-//image uploading method
   Future<void> _selectImage(BuildContext context) async {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedImage = await picker.pickImage(
@@ -93,8 +91,6 @@ class _AddMemberFormState extends State<AddMemberForm> {
     }
   }
 
-
-//Adding team member method
   void _addTeamMember(String creatorId) async {
     try {
       if (_firstNameController.text.isEmpty ||
@@ -118,9 +114,9 @@ class _AddMemberFormState extends State<AddMemberForm> {
       List<DocumentSnapshot> documents = querySnapshot.docs;
 
       //limit verification(only 2 team members)
-      if (documents.length >= 2) {
+      if (documents.length >= 5) {
         ToastUtils.showErrorToast(
-          message: 'You can only add 2 team members',
+          message: 'You can only add 5 team members',
         );
         return;
       }
@@ -154,7 +150,6 @@ class _AddMemberFormState extends State<AddMemberForm> {
       );
     }
   }
-
 
 
   @override

@@ -30,7 +30,6 @@ class _Forgot_pwd_Screen extends State<Forgot_pwd_Screen> {
     super.dispose();
   }
 
-//rest password method
   void _sendResetEmail() async {
     String email = _emailController.text;
     await _auth.sendPasswordResetEmail(email);

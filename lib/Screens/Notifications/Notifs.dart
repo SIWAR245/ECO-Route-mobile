@@ -154,13 +154,13 @@ class _NotifsScreenState extends State<NotifsScreen> {
                             Color.fromRGBO(98, 227, 208,220),
                             Color.fromRGBO(244, 100, 140,220),
                             Color.fromRGBO(123, 152, 245,220),
-                            Color.fromRGBO(123, 152, 245, 220),
+                            Color.fromRGBO(151, 106, 235, 220),
                           ];
                           List<Color> colors2 = [
                             Color.fromRGBO(0, 128, 128,5),
                             Color.fromRGBO(244, 100, 140,5),
                             Color.fromRGBO(123, 152, 245,5),
-                            const Color.fromRGBO(123, 152, 245, 5),
+                            Color.fromRGBO(151, 106, 235, 5),
                           ];
 
                           IconData iconData;
@@ -178,6 +178,10 @@ class _NotifsScreenState extends State<NotifsScreen> {
                             iconData = Icons.route;
                             containerColor = colors[2];
                             iconsColor = colors2[2];
+                          } else if (notif['type'] == 'bin_fallen') {
+                            iconData = Icons.delete ;
+                            containerColor = colors[3];
+                            iconsColor = colors2[3];
                           } else {
                             iconData = Icons.error;
                             containerColor = colors[3];
@@ -204,7 +208,7 @@ class _NotifsScreenState extends State<NotifsScreen> {
                                     ? 'Route Divergence Detected'
                                     : notif['type'] == 'route_ready'
                                     ? 'Route Ready for Collection'
-                                    : notif['type'] == 'fallen_bin'
+                                    : notif['type'] == 'bin_fallen'
                                     ? 'Fallen Bin Detected'
                                     : 'Unknown notification type',
                                 style: TextStyle(
@@ -219,8 +223,8 @@ class _NotifsScreenState extends State<NotifsScreen> {
                                     ? 'You have diverged from the planned route.'
                                     : notif['type'] == 'route_ready'
                                     ? 'Your route is set, time to start collecting waste.'
-                                    : notif['type'] == 'fallen_bin'
-                                    ? 'A bin has fallen down.'
+                                    : notif['type'] == 'bin_fallen'
+                                    ? 'A bin has fallen down in '
                                     : 'Unknown notification type.',
                                 style: const TextStyle(
                                   color: Color.fromRGBO(112, 128, 145, 5),
@@ -238,7 +242,6 @@ class _NotifsScreenState extends State<NotifsScreen> {
                                   color: Color.fromRGBO(112, 128, 145,5),
                                 ),
                               ),
-
                             ),
                           );
                         },

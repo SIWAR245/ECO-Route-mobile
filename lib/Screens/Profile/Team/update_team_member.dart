@@ -33,7 +33,7 @@ class _UpdateMemberFormState extends State<UpdateMemberForm> {
     _loadMemberData();
   }
 
-//date select method
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -47,8 +47,6 @@ class _UpdateMemberFormState extends State<UpdateMemberForm> {
     }
   }
 
-
-  //image uploading method
   Future<void> _selectImage(BuildContext context) async {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedImage = await picker.pickImage(
@@ -77,8 +75,6 @@ class _UpdateMemberFormState extends State<UpdateMemberForm> {
     }
   }
 
-
-  //data loading from firestore
   void _loadMemberData() async {
     try {
       DocumentSnapshot memberSnapshot =
@@ -100,8 +96,6 @@ class _UpdateMemberFormState extends State<UpdateMemberForm> {
     }
   }
 
-
-//Updating team member method
   void _updateMember() {
     try {
       FirebaseFirestore.instance.collection('team_members')
@@ -363,6 +357,7 @@ class _UpdateMemberFormState extends State<UpdateMemberForm> {
                 ),
 
                 const SizedBox(height: 40.0),
+
                 CustomButton(
                   text: 'Update',
                   onPressed: () {

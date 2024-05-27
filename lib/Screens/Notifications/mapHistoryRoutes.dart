@@ -127,17 +127,14 @@ class _MapHistoryState extends State<MapHistory> with SingleTickerProviderStateM
     DocumentSnapshot snapshot =
     await firestore.collection('routes').doc(routeId).get();
 
-    // Check if the document exists
     if (!snapshot.exists) {
       print("Error: Document not found for routeId: $routeId");
       return [];
     }
 
-    // Extract the 'allPoints' field from the document
     List<Map<String, dynamic>> allPointsData =
     List<Map<String, dynamic>>.from(snapshot.get('routePoints'));
 
-    // Convert the 'allPoints' data to a list of GeoPoint
     List<osm.GeoPoint> routePoints = allPointsData.map((pointData) {
       double latitude = pointData['latitude'];
       double longitude = pointData['longitude'];

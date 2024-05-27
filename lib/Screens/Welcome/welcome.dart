@@ -16,30 +16,10 @@ class WelcomeScreen extends StatelessWidget {
               flex: 8,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  vertical: 0,
                   horizontal: 40.0,
                 ),
                 child: Center(
-                  child: RichText(
-                    textAlign: TextAlign.center,
-                    text: const TextSpan(
-                      children: [
-                        TextSpan(
-                            text: 'ECORoute\n',
-                            style: TextStyle(
-                              fontSize: 45.0,
-                              fontWeight: FontWeight.w600,
-                            )),
-                        TextSpan(
-                            text:
-                            '\nEnter personal details to your employee ',
-                            style: TextStyle(
-                              fontSize: 20,
-                              // height: 0,
-                            ))
-                      ],
-                    ),
-                  ),
+                  child: Image.asset('assets/images/logo2.png'),
                 ),
               )),
           Flexible(

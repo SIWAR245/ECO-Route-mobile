@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../Common_widgets/MapButtons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../Common_widgets/CustomTextRich.dart';
-import 'package:flutter/animation.dart';
 import 'package:intl/intl.dart';
 
 import './RouteDataClass.dart';
@@ -40,6 +39,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   late osm.MapController _mapController;
   late AnimationController _routeController;
   late Timer _timer;
+  int _currentIndex = 2;
 
   bool _expandableContainerVisible = false;
   bool _isLoading = false;
@@ -81,15 +81,21 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   static const int nIterations = 50;  // Number of iterations for the ACO algorithm
   static const double alpha = 0.01;  // Pheromone influence factor (higher alpha -> more emphasis on past pheromone trails)
   static const double beta = 0.2;  // Distance influence factor (higher beta -> more emphasis on shorter distances)
-  static const double weight1 = 0.8; // Adjusts the importance of filling level (higher weight1 -> more emphasis on high-fill bins)
-  static const double weight2 = 0.2; // Adjusts the importance of distance (higher weight2 -> more emphasis on shorter distances between bins)
+  static const double weight1 = 0.7; // Adjusts the importance of filling level (higher weight1 -> more emphasis on high-fill bins)
+  static const double weight2 = 0.3; // Adjusts the importance of distance (higher weight2 -> more emphasis on shorter distances between bins)
 
   static const double evaporationRate = 0.6;  // Rate at which pheromone trails evaporate over time
   static const double Q = 70.0;  // Pheromone update constant (controls how much pheromone is added after each ant's path)
-  static const double bias = 0.6; // Probability bias for selecting the most filled bin (60% chance)
+  static const double bias = 0.7; // Probability bias for selecting the most filled bin (60% chance)
 
   double _currentRotationAngle = 0.0;
   static const double _segmentDistance = 0.5; // Adjust this value as needed
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
 
   @override
@@ -171,43 +177,56 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       _userGovernorate = userData['governorate'] ?? ''; // Assigning governorate to class variable
       _userMunicipality = userData['municipality'] ?? ''; // Assigning municipality to class variable
 
-
-
       print('User governorate: $userGovernorate, User municipality: $userMunicipality');
 
       // Query bins matching the user's governorate and municipality
-      var binSnapshot = await firestore.FirebaseFirestore.instance
+      var binQuery = firestore.FirebaseFirestore.instance
           .collection('bins')
           .where('governorate', isEqualTo: userGovernorate)
-          .where('municipality', isEqualTo: userMunicipality)
-          .get();
+          .where('municipality', isEqualTo: userMunicipality);
 
-      if (binSnapshot.docs.isEmpty) {
-        print('No bins found in the same governorate and municipality as the user.');
-        return;
-      }
+      // Create a stream of bin documents
+      var binStream = binQuery.snapshots();
 
-      print('Bins found in the same governorate and municipality as the user.');
+      // Listen for changes on the stream
+      binStream.listen((binSnapshot) {
+        if (binSnapshot.docs.isNotEmpty) {
+          print('Bins updated');
+          // Clear existing bins
+          allBins.clear();
 
-      // Mapping bin documents to BinInfo objects and assigning them to the class-level variable allBins
-      allBins = binSnapshot.docs.map((doc) {
-        firestore.GeoPoint location = doc['location'] as firestore.GeoPoint;
-        double fillLevel = double.parse(doc['filling_level'].toString());
-        String locationName = doc['location_name'].toString();
-        return BinInfo(
-          fillingLevel: fillLevel,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          locationName: locationName,
-        );
-      }).toList();
+          // Mapping bin documents to BinInfo objects and assigning them to the class-level variable allBins
+          allBins.addAll(binSnapshot.docs.map((doc) {
+            String binId = doc.id; // Get the document ID as binId
+            firestore.GeoPoint location = doc['location'] as firestore.GeoPoint;
+            double fillingLevel = double.tryParse(doc['filling_level'].toString()) ?? 0.0;
+            if (fillingLevel.isNaN) {
+              fillingLevel = 0.0;
+            }
+            String locationName = doc['location_name'].toString();
+            String tiltStatus = doc['tilt_status'].toString();
 
-      print('Bins mapped to BinInfo objects successfully: $allBins');
-      allBins.sort((a, b) => b.fillingLevel.compareTo(a.fillingLevel));
+            return BinInfo(
+              binId: binId, // Add binId
+              fillingLevel: fillingLevel,
+              latitude: location.latitude,
+              longitude: location.longitude,
+              locationName: locationName,
+              tiltStatus: tiltStatus,
+            );
+          }).toList());
 
-      print('Bins sorted by filling level (descending): $allBins');
-      // Add markers for all bins
-      _addMarkers(allBins);
+
+          // Sort bins by filling level
+          allBins.sort((a, b) => b.fillingLevel.compareTo(a.fillingLevel));
+
+          // Add markers for all bins
+          _addMarkers(allBins);
+
+          // Update UI
+          setState(() {});
+        }
+      });
     } catch (error) {
       print('Error fetching bin information: $error');
     }
@@ -239,9 +258,11 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     print('Total number of bins: ${allBins.length}');
     print('All bins: $allBins');
 
-    // Filter out bins with a filling level <= 70
-    List<BinInfo> filteredBins = allBins.where((bin) => bin.fillingLevel > 70).toList();
-    print('Filtered bins (filling level > 70): $filteredBins');
+    // Filter out bins with a filling level <= 70 or with tilt_status = 'stable'
+    List<BinInfo> filteredBins = allBins.where((bin) => bin.fillingLevel > 70  || bin.tiltStatus == "fallen").toList();
+
+
+    print('Filtered bins: $filteredBins');
 
     // Calculate the percentage of bins with filling levels > 70 compared to the total number of bins
     double percentage = (filteredBins.length / allBins.length) * 100;
@@ -249,12 +270,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
     // Check for 0% or less than 50% for skipped route dialog
     if (percentage <= 50) {
-      String message;
-      if (percentage == 0) {
-        message = "Bins chilling. Route stalling!";
-      } else {
-        message = "Bins chilling. Route stalling!";
-      }
+      String message = "Bins chilling. Route stalling!";
       _showRouteGenerationSkippedDialog(message);
     } else {
       print('Percentage is greater than 50%. Proceeding with route generation.');
@@ -268,7 +284,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         await _generateRoute(userLocation, bestRouteBins);
       } else {
         print('No valid route found.'); // Or handle the empty route case accordingly
-        _showRouteGenerationSkippedDialog("No valid route found. There are no bins with filling levels greater than 70%.");
+        _showRouteGenerationSkippedDialog("No valid route found. There are no bins with filling levels greater than 70% or with tilt_status 'fallen'.");
       }
     }
   }
@@ -483,7 +499,15 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
     return bestPath;
   }
-  int _chooseRandomly(List<int> choices, List<double> probabilities) {
+  int _chooseRandomly(List<int> choices, List<double> probabilities, {double bias = 0.5}) {
+    if (choices.isEmpty) {
+      throw ArgumentError("Choices list cannot be empty");
+    }
+
+    if (choices.length != probabilities.length) {
+      throw ArgumentError("Choices and probabilities lists must have the same length");
+    }
+
     double randomValue = Random().nextDouble();
     double cumulativeProbability = 0.0;
 
@@ -614,9 +638,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   }
   Future<RouteData> _drawRoute(List<osm.GeoPoint> routePoints) async {
     try {
-      if (_routeCreated) {
+      if (_routeCreated && _routeId.isNotEmpty) {
         print("Route already created. Skipping route creation.");
-        // You may return existing route data here if needed
+        // Return existing route data with the stored route ID
         return RouteData(
           allPoints: _allpoints,
           routePoints: _generatedRoutePoints,
@@ -624,29 +648,18 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
           totalDuration: _duration,
           routeId: _routeId,
         );
+
       }
 
       final User? user = _auth.currentUser;
       if (user == null) {
         print("Error: User not logged in.");
-        return RouteData(
-          allPoints: [],
-          routePoints: [],
-          totalDistance: 0.0,
-          totalDuration: 0.0,
-          routeId: '',
-        );
+        return RouteData(allPoints: [], routePoints: [],totalDistance:0.0,totalDuration:0.0,routeId: '');
       }
 
       if (routePoints.isEmpty) {
         print("Error: Route points list is empty.");
-        return RouteData(
-          allPoints: [],
-          routePoints: [],
-          totalDistance: 0.0,
-          totalDuration: 0.0,
-          routeId: '',
-        );
+        return RouteData(allPoints: [], routePoints: [],totalDistance:0.0,totalDuration:0.0,routeId: '');
       }
 
       print("Start drawing route...");
@@ -665,46 +678,38 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
       // Draw the route from start to first bin
       print("Drawing route from start to first bin...");
-      roads.add(await _mapController.drawRoad(
-        start,
-        intermediatePoints.first,
-        roadType: osm.RoadType.car,
-        roadOption: osm.RoadOption(
-          roadWidth: 20, // Set the width of the polyline
-          roadColor: Colors.blue[400]!,
-          zoomInto: false, // No need to zoom into the route for intermediate segments
-        ),
-      ));
+      roads.add(await _mapController.drawRoad(start, intermediatePoints.first,
+          roadType: osm.RoadType.car,
+          roadOption: osm.RoadOption(
+            roadWidth: 20, // Set the width of the polyline
+            roadColor: Colors.blue[400]!,
+            zoomInto: true, // No need to zoom into the route for intermediate segments
+          )));
 
       // Draw the route between bins
       for (int i = 0; i < intermediatePoints.length - 1; i++) {
         print("Drawing route between bins ${i + 1} and ${i + 2}...");
 
         roads.add(await _mapController.drawRoad(
-          intermediatePoints[i],
-          intermediatePoints[i + 1],
-          roadType: osm.RoadType.car,
-          roadOption: osm.RoadOption(
-            roadWidth: 20, // Set the width of the polyline
-            roadColor: Colors.blue[400]!,
-            zoomInto: false, // No need to zoom into the route for intermediate segments
-          ),
-        ));
+            intermediatePoints[i], intermediatePoints[i + 1],
+            roadType: osm.RoadType.car,
+            roadOption: osm.RoadOption(
+              roadWidth: 20, // Set the width of the polyline
+              roadColor: Colors.blue[400]!,
+              zoomInto: true, // No need to zoom into the route for intermediate segments
+            )));
       }
 
       // Draw the route from last bin to destination
       print("Drawing route from last bin to destination...");
       roads.add(await _mapController.drawRoad(
-        intermediatePoints.last,
-        destination,
-        roadType: osm.RoadType.car,
-        roadOption: osm.RoadOption(
-          roadWidth: 20, // Set the width of the polyline
-          roadColor: Colors.blue[400]!,
-          zoomInto: true, // Zoom into the route for the last segment
-        ),
-      ));
-
+          intermediatePoints.last, destination,
+          roadType: osm.RoadType.car,
+          roadOption: osm.RoadOption(
+            roadWidth: 20, // Set the width of the polyline
+            roadColor: Colors.blue[400]!,
+            zoomInto: true,
+          )));
       // Calculate total duration and distance
       double totalDuration = 0;
       double totalDistance = 0;
@@ -734,53 +739,54 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         _instructions = roads.map((road) => road.instructions).join('\n');
       });
 
-      // Optionally, you can print some information about the route
       print("Route information:");
       print("Distance: $_distance");
       print("Duration: $_duration");
       print("Instructions: $_instructions");
+      // Update route information variables
 
-      // Extract initial points used to draw the route
-      List<osm.GeoPoint> initialPoints = [start];
-      initialPoints.addAll(intermediatePoints);
-      initialPoints.add(destination);
+
 
       // Extract all points along the route
       List<osm.GeoPoint> allPoints = [];
       for (var road in roads) {
         allPoints.addAll(road.route);
       }
-      _allpoints = allPoints;
-      _generatedRoutePoints = routePoints;
-
+      _allpoints=allPoints;
+      _generatedRoutePoints=routePoints;
       // Call createRoute method after drawing the route successfully
-      String? createdRouteId =
-      await createRoute(fuelConsumption, routePoints.length, initialPoints);
+      String? createdRouteId = await createRoute(
+        fuelConsumption,
+        routePoints.length,
+        allPoints,
+        routePoints,
+      );
 
+      // Store the route ID if it's created successfully
+      if (createdRouteId != null && createdRouteId.isNotEmpty) {
+        _routeId = createdRouteId;
+        _routeCreated = true;
+      }
 
-      // Set routeCreated to true to prevent further route creation
-      _routeCreated = true;
-
-      // Return both lists in a RouteData object
+      // Return the route data
       return RouteData(
         allPoints: allPoints,
         routePoints: routePoints,
         totalDistance: roundedDistance,
-        routeId: createdRouteId,
+        routeId: _routeId,
         totalDuration: durationInMinutes.toDouble(),
       );
     } catch (error) {
       print("Error while drawing route: $error");
-      return RouteData(
-        allPoints: [],
-        routePoints: [],
-        totalDistance: 0.0,
-        totalDuration: 0.0,
-        routeId: '',
-      );
+      return RouteData(allPoints: [], routePoints: [], totalDistance: 0.0, totalDuration: 0.0, routeId: '');
     }
   }
-  Future<String?> createRoute(double fuelConsumption, int collectedBins, List<osm.GeoPoint> initialPoints) async {
+  double _calculateFuelConsumption(double distance) {
+    double fuelEfficiency = 3; // km/l
+    double consumption = distance / fuelEfficiency;
+    return double.parse(consumption.toStringAsFixed(1)); // Round to one decimal place
+  }
+  Future<String?>  createRoute( double fuelConsumption,int collectedBins,List<osm.GeoPoint> allPoints,List<osm.GeoPoint> routePoints) async {
     try {
       if (_routeCreated) {
         print("Route already created. Skipping route creation.");
@@ -795,7 +801,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         return null;
       }
 
-      // Create a route document in Firestore
       final firestore.CollectionReference routesCollection =
       firestore.FirebaseFirestore.instance.collection('routes');
       final firestore.DocumentReference newRouteRef =
@@ -818,25 +823,30 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         'date': currentTime, // Add the current timestamp
         'dayId': dayId, // Add the day ID
         'collected_bins': collectedBins, // Add collected bins count
-        'initialPoints': initialPoints.map((point) => {
+        'allPoints': allPoints.map((point) => {
           'latitude': point.latitude,
           'longitude': point.longitude,
         }).toList(),
+        'routePoints':routePoints.map((point)=>{
+          'latitude':point.latitude,
+          'longitude':point.longitude,
+        })
       });
 
+
+      print("Route information:");
+      print("Distance: $_distance");
+      print("Duration: $_duration");
+      print("Instructions: $_instructions");
       return newRouteRef.id;
     } catch (error) {
       print("Error while creating route: $error");
       return null;
     }
   }
-  double _calculateFuelConsumption(double distance) {
-    double fuelEfficiency = 3; // km/l
-    double consumption = distance / fuelEfficiency;
-    return double.parse(consumption.toStringAsFixed(1)); // Round to one decimal place
-  }
 
-  Future<List<osm.GeoPoint>> drawTestRoute(osm.MapController _mapController,List<osm.GeoPoint> allPoints) async {
+
+  Future<List<osm.GeoPoint>> drawTestRoute(osm.MapController _mapController,List<osm.GeoPoint> allPoints,String routeId) async {
     // Define the route points
     final List<osm.GeoPoint> routePoints = [
       osm.GeoPoint(latitude: 36.1796, longitude: 8.7074), // New starting point
@@ -883,8 +893,8 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     for (var road in roads) {
       allTestPoints.addAll(road.route);
     }
-    await createTestRoute(allTestPoints);
-    String? createdTestRouteId = await createTestRoute(allTestPoints);
+    await createTestRoute(allTestPoints,routeId);
+    String? createdTestRouteId = await createTestRoute(allTestPoints,routeId);
     // Return the list of all the points of the drawn route
     print('alltestpoints:$allTestPoints');
 
@@ -892,7 +902,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     startTestRouteSimulation(allTestPoints, allPoints,createdTestRouteId ); // Pass allPoints
     return allTestPoints;
   }
-  Future<String?> createTestRoute(List<osm.GeoPoint> allTestPoints) async {
+  Future<String?> createTestRoute(List<osm.GeoPoint> allTestPoints, routeId) async {
     try {
       // Create a route document in Firestore
       final firestore.CollectionReference routesCollection =
@@ -907,6 +917,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       final dayId = DateFormat('yyyyMMdd').format(currentTime);
 
       await newRouteRef.set({
+        'correctRouteId': routeId,
         'routeId': newRouteRef.id,
         'date': currentTime,
         'allTestPoints': allTestPoints.map((point) =>
@@ -933,7 +944,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
 
   }
-
   void startTestRouteSimulation(List<osm.GeoPoint> allTestpoints,List<osm.GeoPoint> allPoints,String? routeId) async {
     print('Starting route simulation...');
     for (int i = 0; i < allTestpoints.length; i++) {
@@ -954,15 +964,20 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       await Future.delayed(Duration(milliseconds: 100));
       await _mapController.removeMarker(currentTestPoint);
 
+
       // Check if the test point matches the correct point
       if (!allPoints.contains(currentTestPoint)) {
         _showWrongPathDialog(); // Show wrong path dialog
 
+
         continue; // Stop the simulation once a wrong point is found
       }
     }
+    await _mapController.clearAllRoads();
+
     createNotification('wrong_route', '$routeId');
   }
+
   void _showWrongPathDialog() {
     showDialog(
       context: context,
@@ -1022,7 +1037,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       },
     );
   }
-
   void _showRouteCompletionDialog() {
     showDialog(
       context: context,
@@ -1083,13 +1097,12 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       },
     );
   }
-  void startRouteSimulation(List<osm.GeoPoint> allpoints, List<osm.GeoPoint> routePoints, double totalDistance, double totalDuration,String routeId) async {
+  void startRouteSimulation(List<osm.GeoPoint> allpoints, List<osm.GeoPoint> routePoints, double totalDistance, double totalDuration,String? routeId) async {
     // Make sure routePoints is not empty
     if (allpoints.isEmpty) {
       print('Route points are empty. Cannot start simulation.');
       return;
     }
-
     print('binPoints number: ${routePoints.length}');
     print('binPoints: $routePoints'); // Log all route points
     print('Starting route simulation...');
@@ -1111,8 +1124,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
     for (int i = 0; i < formattedAllPoints.length; i++) {
       bool isRoutePoint = formattedRoutePoints.contains(formattedAllPoints[i]);
-
-      // **Log:** Print formatted point for debugging
       print('Current formatted point: $formattedAllPoints[i]');
 
       // Check if current point is a route point
@@ -1143,6 +1154,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                 foundBins.add(matchingBin);
 
                 await _showPauseDialog(matchingBin, routePoints.length - foundBins.length);
+                await updateBinFillingLevel(matchingBin, 0);
                 lastVisitedBinIndex[formattedPoint] = i; // Update last visited index
               }
 
@@ -1164,25 +1176,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
       osm.GeoPoint currentPoint = allpoints[i];
 
-      // Remove previous marker if it exists
-      if (i > 0) {
-        osm.GeoPoint prevPoint = allpoints[i - 1];
-        double distance = _calculateDistance(prevPoint.latitude, prevPoint.longitude, currentPoint.latitude, currentPoint.longitude);
-        print('Distance from previous point: $distance km');
-        totalDistance -= distance;
-        updateTotalDistance(totalDistance);
-        print('New total distance: $totalDistance km');
-
-
-        if (prevPoint != null) {
-          await _mapController.removeMarker(prevPoint);
-        }
-        await Future.delayed(Duration(milliseconds: 10)); // Short delay to allow removal
-
-      }
-
-      // Update user location and move camera along with it
-      await _mapController.moveTo(currentPoint, animate: true);
+      // Add marker only to current position
       await _mapController.addMarker(
         currentPoint,
         markerIcon: osm.MarkerIcon(
@@ -1194,14 +1188,41 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         ),
       );
 
+      await _mapController.moveTo(currentPoint, animate: true);
+
+      if (i > 0) {
+        osm.GeoPoint prevPoint = allpoints[i - 1];
+        double distance = _calculateDistance(prevPoint.latitude, prevPoint.longitude, currentPoint.latitude, currentPoint.longitude);
+        print('Distance from previous point: $distance km');
+        totalDistance -= distance;
+        updateTotalDistance(totalDistance);
+        print('New total distance: $totalDistance km');
+
+        await _mapController.removeMarker(prevPoint);
+        await Future.delayed(Duration(milliseconds: 100)); // Short delay to allow removal
+      }
+
       // Delay between updating user location (adjust as needed)
-      await Future.delayed(Duration(milliseconds: 10));
+      await Future.delayed(Duration(milliseconds: 500));
     }
 
     print('Simulation completed.');
     _showRouteCompletionDialog();
     await _mapController.removeLastRoad();
-    await createNotification('correct_route', '$routeId');
+    await createNotification('correct_route', routeId!);
+  }
+// Function to update bin filling level in Firestore
+  Future<void> updateBinFillingLevel(BinInfo bin, int fillingLevel) async {
+    try {
+      // Assuming you have a binId property in BinInfo
+      await firestore.FirebaseFirestore.instance
+          .collection('bins')
+          .doc(bin.binId) // Use binId to reference the specific bin
+          .update({'filling_level': fillingLevel});
+      print('Bin filling level updated successfully.');
+    } catch (e) {
+      print('Error updating bin filling level: $e');
+    }
   }
   List<String> _formatCoordinates(List<osm.GeoPoint> points) {
     return points.map((point) {
@@ -1347,12 +1368,12 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                       ),
                     ),
                   ),
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.play_arrow,
                     color: Colors.teal,
                   ),
-                  label: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 15.0),
+                  label: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 15.0),
                     child: Text(
                       "Resume",
                       style: TextStyle(
@@ -1414,6 +1435,8 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   }
 
 
+
+
   void _toggleUserLocation() async  {
     setState(() {
       _showUserLocation = !_showUserLocation;
@@ -1456,15 +1479,13 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     });
   }
   void _zoomIn() async {
-    await _mapController.zoomIn();
+   await _mapController.zoomIn();
   }
   void _zoomOut() async {
     await _mapController.zoomOut();
   }
   void rotateMap(osm.MapController controller) {
-    // Increment the current rotation angle by 90 degrees
     _currentRotationAngle += 30.0;
-    // Call the rotateMapCamera method with the updated rotation angle
     controller.rotateMapCamera(_currentRotationAngle);
   }
 
@@ -1487,14 +1508,14 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             ),
           ),
           if (_mapLoaded) ...[
-            // Only render these widgets if the map is fully loaded
             _buildFloatingButtons(),
-            if (_expandableContainerVisible) _buildExpandableContainer(), // Conditionally render the expandable container
+            if (_expandableContainerVisible) _buildExpandableContainer(),
           ],
         ],
       ),
     );
   }
+
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
@@ -1520,7 +1541,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
           FloatingActionButton(
             heroTag: 'fab2',
             onPressed: () {
-              _zoomIn();           },
+             _zoomIn() ;           },
             mini: true,
             backgroundColor: Colors.white70,
             child: Icon(Icons.add, color: Colors.teal),
@@ -1529,7 +1550,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
           FloatingActionButton(
             heroTag: 'fab3',
             onPressed: () {
-              _zoomOut();
+             _zoomOut();
             },
             mini: true,
             backgroundColor: Colors.white70,
@@ -1554,7 +1575,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             onPressed: () async {
               RouteData routeData = await _drawRoute( _generatedRoutePoints);
               if (routeData.allPoints.isNotEmpty) {
-                await drawTestRoute(_mapController, routeData.allPoints);
+                await drawTestRoute(_mapController, routeData.allPoints,_routeId);
               }
             },
             mini: true,
@@ -1573,6 +1594,18 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             child: Icon(
                 Icons.rotate_right, color: Colors.teal), // Rotate map button
           ),
+          FloatingActionButton(
+            heroTag: 'fab1',
+            onPressed: () {
+              setState(() {
+                _expandableContainerVisible = !_expandableContainerVisible;
+              });
+            },
+            mini: true,
+            backgroundColor: Colors.white70,
+            child: Icon(Icons.keyboard_arrow_down_sharp, color: Colors.teal),
+          ),
+          SizedBox(height: 5),
         ],
       ),
     );
@@ -1650,8 +1683,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       String cleanInstruction = instruction.replaceAll('[', '').replaceAll(']', '').trim();
 
       // Determine if this instruction should be replaced with a bin
-      if (cleanInstruction.toLowerCase().contains('vous etes arrivé a une etape de votre voyage')) {
-        // If a bin is available, replace the instruction with the bin
+      if (cleanInstruction.toLowerCase().contains('you have reached a bin')){ // If a bin is available, replace the instruction with the bin
         if (allBins.isNotEmpty) {
           BinInfo bin = allBins.removeAt(0); // Remove the first bin from the list
           allWidgets.add(
@@ -1675,7 +1707,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                       ),
                     ],
                   ),
-                  // Add separator conditionally
                   if (i != instructionList.length - 1)
                     Padding(
                       padding: EdgeInsets.only(left: 35, top: 20, bottom: 20),
@@ -1695,14 +1726,14 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       } else {
         // Process regular instructions
         IconData icon;
-        if (cleanInstruction.toLowerCase().contains('droite')) {
+        if (cleanInstruction.toLowerCase().contains('right')) {
           icon = Icons.turn_right;
-        } else if (cleanInstruction.toLowerCase().contains('gauche')) {
+        } else if (cleanInstruction.toLowerCase().contains('left')) {
           icon = Icons.turn_left;
-        } else if (cleanInstruction.toLowerCase().contains('rond-point')) {
+        } else if (cleanInstruction.toLowerCase().contains('roundabout')) {
           icon = Icons.roundabout_left_sharp;
-        } else if ((cleanInstruction.toLowerCase().contains('sortie')) ||
-            (cleanInstruction.toLowerCase().contains('prenez'))) {
+        } else if (cleanInstruction.toLowerCase().contains('exit') ||
+            cleanInstruction.toLowerCase().contains('take')) {
           icon = Icons.arrow_upward;
         } else {
           icon = Icons.location_on_outlined; // Default icon
@@ -1736,8 +1767,8 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border(
-                            bottom: BorderSide(
-                                width: 1, color: Colors.grey.shade200)),
+                          bottom: BorderSide(width: 1, color: Colors.grey.shade200),
+                        ),
                       ),
                     ),
                   ),
@@ -1747,12 +1778,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         );
       }
     }
-
-    // Return the combined list of widgets
     return Container(
-      height: 620, // Adjust the height as needed
+      height: 620,
       child: SingleChildScrollView(
-        // Wrap with SingleChildScrollView
         physics: AlwaysScrollableScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1773,6 +1801,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       ),
     );
   }
+
 
   Widget PinnedContentView() {
     // Sort the bins by fill level in descending order
@@ -2077,7 +2106,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                     double totalDistance = routeData.totalDistance;
                     double totalDuration = routeData.totalDuration;
                     String? routeId = routeData.routeId;
-                    startRouteSimulation(allPoints, routePoints,totalDistance,totalDuration,routeId!); // Call startRouteSimulation
+                    startRouteSimulation(allPoints, routePoints,totalDistance,totalDuration,routeId); // Call startRouteSimulation
                   },
                   child: Text(
                     "Yes",

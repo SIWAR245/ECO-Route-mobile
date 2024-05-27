@@ -24,7 +24,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController =TextEditingController();
 
 
-  // Initialize the email and password controllers with empty values
   @override
   void initState() {
     _emailController.text = '';
@@ -40,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  //the login method
+
   Future<bool> _login() async {
     String email = _emailController.text;
     String password = _passwordController.text;
